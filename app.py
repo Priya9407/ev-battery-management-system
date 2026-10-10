@@ -239,3 +239,248 @@ with st.expander("View processed battery dataset"):
     )
 
 st.success("Battery dashboard loaded successfully.")
+
+
+# -------------------- Predict for a New Battery --------------------
+st.divider()
+st.header("🧪 Predict for a New Battery")
+st.write(
+    "Upload new discharge-cycle measurements to estimate battery "
+    "capacity and state of health using the trained ML model."
+)
+
+st.warning(
+    "The input must contain the same 15 features used during training. "
+    "Predictions for batteries unlike the NASA training batteries may "
+    "be inaccurate. This is a research estimate, not a safety assessment."
+)
+
+# Downloadable input template
+template = pd.DataFrame(columns=feature_columns)
+template.loc[0] = [0.0] * len(feature_columns)
+
+st.download_button(
+    label="📥 Download CSV input template",
+    data=template.to_csv(index=False),
+    file_name="new_battery_input_template.csv",
+    mime="text/csv",
+)
+
+uploaded_csv = st.file_uploader(
+    "Upload new battery measurements (CSV)",
+    type=["csv"],
+    key="new_battery_csv",
+)
+
+if uploaded_csv is not None:
+    try:
+        new_data = pd.read_csv(uploaded_csv)
+
+        missing_columns = [
+            column for column in feature_columns if column not in new_data.columns
+        ]
+
+        if missing_columns:
+            st.error(
+                "Your CSV is missing required features: " + ", ".join(missing_columns)
+            )
+        elif new_data.empty:
+            st.error("The uploaded CSV contains no rows.")
+        else:
+            X_new = new_data[feature_columns].apply(pd.to_numeric, errors="coerce")
+
+            invalid_rows = X_new.isna().all(axis=1)
+
+            if invalid_rows.any():
+                st.error(
+                    "Some rows contain no usable numeric measurements. "
+                    "Please check your CSV."
+                )
+            else:
+                predictions = model.predict(X_new)
+
+                results = new_data.copy()
+                results["predicted_capacity_ah"] = predictions
+                results["predicted_soh_percent"] = (
+                    predictions / rated_capacity * 100
+                ).clip(0, 100)
+
+                st.subheader("Prediction results")
+                st.dataframe(results, use_container_width=True)
+
+                st.download_button(
+                    "📥 Download prediction results",
+                    data=results.to_csv(index=False),
+                    file_name="new_battery_predictions.csv",
+                    mime="text/csv",
+                )
+
+                st.caption(
+                    "SOH is estimated as predicted capacity / 2.0 Ah × 100. "
+                    "The 2.0 Ah reference is the project's assumed rated capacity."
+                )
+
+    except Exception as exc:
+        st.error(f"Could not process the uploaded CSV: {exc}")
+
+
+# -------------------- Manual Battery Prediction --------------------
+st.divider()
+st.header("✍️ Predict by Entering Values")
+st.write(
+    "Enter discharge-cycle measurements below to estimate battery "
+    "capacity and state of health."
+)
+
+with st.form("manual_battery_prediction"):
+    st.subheader("Battery information")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        cycle = st.number_input(
+            "Discharge cycle number",
+            min_value=1,
+            value=100,
+            step=1,
+        )
+        ambient_temperature_c = st.number_input(
+            "Ambient temperature (°C)",
+            value=25.0,
+            step=0.5,
+        )
+        voltage_mean = st.number_input(
+            "Mean measured voltage (V)",
+            value=3.7,
+            step=0.01,
+        )
+        voltage_min = st.number_input(
+            "Minimum measured voltage (V)",
+            value=3.0,
+            step=0.01,
+        )
+        voltage_max = st.number_input(
+            "Maximum measured voltage (V)",
+            value=4.2,
+            step=0.01,
+        )
+        current_mean = st.number_input(
+            "Mean measured current (A)",
+            value=-1.0,
+            step=0.01,
+        )
+        current_min = st.number_input(
+            "Minimum measured current (A)",
+            value=-2.0,
+            step=0.01,
+        )
+        current_max = st.number_input(
+            "Maximum measured current (A)",
+            value=0.0,
+            step=0.01,
+        )
+
+    with col2:
+        temperature_mean = st.number_input(
+            "Mean battery temperature (°C)",
+            value=25.0,
+            step=0.5,
+        )
+        temperature_min = st.number_input(
+            "Minimum battery temperature (°C)",
+            value=22.0,
+            step=0.5,
+        )
+        temperature_max = st.number_input(
+            "Maximum battery temperature (°C)",
+            value=30.0,
+            step=0.5,
+        )
+        time_mean = st.number_input(
+            "Mean discharge time (seconds)",
+            value=1000.0,
+            min_value=0.0,
+            step=10.0,
+        )
+        time_min = st.number_input(
+            "Minimum discharge time (seconds)",
+            value=0.0,
+            min_value=0.0,
+            step=10.0,
+        )
+        time_max = st.number_input(
+            "Maximum discharge time (seconds)",
+            value=2000.0,
+            min_value=0.0,
+            step=10.0,
+        )
+        current_abs_mean = st.number_input(
+            "Mean absolute current (A)",
+            value=1.0,
+            min_value=0.0,
+            step=0.01,
+        )
+
+    predict_clicked = st.form_submit_button(
+        "🔋 Predict Battery Capacity",
+        type="primary",
+        use_container_width=True,
+    )
+
+if predict_clicked:
+    manual_values = {
+        "cycle": cycle,
+        "ambient_temperature_c": ambient_temperature_c,
+        "Voltage_measured_mean": voltage_mean,
+        "Voltage_measured_min": voltage_min,
+        "Voltage_measured_max": voltage_max,
+        "Current_measured_mean": current_mean,
+        "Current_measured_min": current_min,
+        "Current_measured_max": current_max,
+        "Temperature_measured_mean": temperature_mean,
+        "Temperature_measured_min": temperature_min,
+        "Temperature_measured_max": temperature_max,
+        "Time_mean": time_mean,
+        "Time_min": time_min,
+        "Time_max": time_max,
+        "current_abs_mean": current_abs_mean,
+    }
+
+    manual_input = pd.DataFrame(
+        [[manual_values[col] for col in feature_columns]],
+        columns=feature_columns,
+    )
+
+    try:
+        manual_capacity = float(model.predict(manual_input)[0])
+        manual_soh = manual_capacity / rated_capacity * 100
+
+        st.subheader("🔎 Prediction result")
+
+        result1, result2 = st.columns(2)
+        result1.metric(
+            "Predicted capacity",
+            f"{manual_capacity:.3f} Ah",
+        )
+        result2.metric(
+            "Estimated SOH",
+            f"{manual_soh:.1f}%",
+        )
+
+        if manual_capacity < 0 or manual_soh > 100:
+            st.warning(
+                "The model returned a capacity outside the expected "
+                "0–2 Ah range. Treat this as an unreliable prediction "
+                "and check the input measurements."
+            )
+        else:
+            st.progress(max(0.0, min(1.0, manual_soh / 100)))
+
+        st.caption(
+            "Research estimate only. Results depend on input quality "
+            "and similarity to the training data. The default values "
+            "are examples, not actual measurements."
+        )
+
+    except Exception as exc:
+        st.error(f"Prediction failed: {exc}")

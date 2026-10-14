@@ -1,20 +1,34 @@
-
-# Python environment
-.venv/
-venv/
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+.pytest_cache/
 
-# Secrets and environment variables
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets (never commit these)
 .env
-.env.*
-!.env.example
 .streamlit/secrets.toml
 
-# Editor and operating-system files
+# Editors and OS files
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
 
+# Jupyter
+.ipynb_checkpoints/
+
+# Excel temporary lock files
+~$*
+
 # Logs
 *.log
+
+# Optional: uncomment to keep large training artifacts out of the repo.
+# The app needs battery_discharge_features.csv and
+# capacity_prediction_model.joblib, so do not ignore those.
+# ppo_ev_charging*.zip

@@ -571,7 +571,7 @@ with tab_overview:
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(
         kpi(
-            "AI-estimated capacity",
+            "Estimated capacity",
             f"{predicted_capacity:.3f} Ah",
             f"Rated {RATED_CAPACITY_AH:.1f} Ah",
         ),
@@ -617,7 +617,7 @@ with tab_overview:
                     battery_data,
                     [
                         ("Recorded", "capacity_ah", SLATE),
-                        ("AI-estimated", "pred_capacity", TEAL),
+                        ("Estimated", "pred_capacity", TEAL),
                     ],
                     "Capacity (Ah)",
                     rule=EOL_CAPACITY_AH,
@@ -679,7 +679,7 @@ with tab_degradation:
             section("Capacity over discharge cycles")
             series = [("Recorded", "capacity_ah", SLATE)]
             if show_estimates:
-                series.append(("AI-estimated", "pred_capacity", TEAL))
+                series.append(("Estimated", "pred_capacity", TEAL))
             show_chart(
                 line_chart(
                     view,
@@ -694,7 +694,7 @@ with tab_degradation:
             section("State of health over discharge cycles")
             series = [("Recorded", "soh_percent", SLATE)]
             if show_estimates:
-                series.append(("AI-estimated", "pred_soh", TEAL))
+                series.append(("Estimated", "pred_soh", TEAL))
             show_chart(
                 line_chart(
                     view,
